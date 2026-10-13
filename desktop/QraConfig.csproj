@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF><EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>QRA-Config</AssemblyName><RootNamespace>QraConfig</RootNamespace>
+    <ApplicationIcon>../gui/assets/qra-config.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Product>QRA-Config</Product><Description>QRA-Talk USB settings companion</Description>
+    <RuntimeFrameworkVersion>10.0.12</RuntimeFrameworkVersion>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <ApplicationManifest>UI/app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="UI/Tests/**/*.cs" />
+    <ApplicationDefinition Include="UI/App.xaml" />
+    <Resource Include="../gui/assets/qra-config.png" Link="Assets/qra-config.png" />
+    <EmbeddedResource Include="../internal/bundle/platform-tools.zip" LogicalName="QraConfig.Adb.zip" />
+    <EmbeddedResource Include="../docs/qra-talk-guide.html" LogicalName="QraConfig.Guide.html" />
+    <EmbeddedResource Include="../internal/bundle/manifest.json" LogicalName="QraConfig.Adb.manifest.json" />
+  </ItemGroup>
+</Project>

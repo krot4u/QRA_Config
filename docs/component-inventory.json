@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "adb": {
+    "platform_tools_version": "37.0.1",
+    "download_url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip",
+    "upstream_archive_sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+    "embedded_archive_sha256": "71e57a6cf12addf67e0966bc0c13a6edb141e358a39a487cc11039109752beea",
+    "source_repository": "https://android.googlesource.com/platform/packages/modules/adb/",
+    "windows_usb_libraries_source": "https://android.googlesource.com/platform/development/+/refs/heads/main/host/windows/usb/",
+    "source_revision": "Google release archive 37.0.1; exact source commit not supplied by source.properties. Do not claim a source-rebuilt ADB.",
+    "license_notice": "Full unmodified upstream NOTICE.txt (archive-level, includes components not shipped in our subset). ADB source and Windows USB API source are Apache-2.0; bundled third-party code retains applicable upstream notice terms. No claim that every archive license applies to each DLL.",
+    "redistribution_review": "Bundling is subject to Foundation review; upstream license attribution is preserved, not relicensed as GPL.",
+    "files": [
+      {
+        "path": "adb.exe",
+        "version": "37.0.1",
+        "sha256": "b4a6b455702684652cccf7b46258b29e653538904359a58fd4931cf3ef286b3f",
+        "size": 8273560,
+        "role": "runtime",
+        "license": "Apache-2.0 source plus applicable upstream NOTICE terms",
+        "sign": false,
+        "license_evidence": "docs/upstream/NOTICE.txt: Notices for file(s): /bin/adb; Apache License Version 2.0"
+      },
+      {
+        "path": "AdbWinApi.dll",
+        "version": "37.0.1",
+        "sha256": "c1d653030b4bde65d3e07e4d0b0979e17be56df1436cdd15528630f27808050d",
+        "size": 108184,
+        "role": "runtime",
+        "license": "Apache-2.0 source plus applicable upstream NOTICE terms",
+        "sign": false,
+        "license_evidence": "https://android.googlesource.com/platform/development/+/refs/heads/main/host/windows/usb/api/adb_api.h (Apache-2.0 source header; archive NOTICE remains authoritative for redistributed binaries)"
+      },
+      {
+        "path": "AdbWinUsbApi.dll",
+        "version": "37.0.1",
+        "sha256": "0710e894d9b40f71a670c13c694079d564c92c1279da382cfe4850983aaebe1b",
+        "size": 73368,
+        "role": "runtime",
+        "license": "Apache-2.0 source plus applicable upstream NOTICE terms",
+        "sign": false,
+        "license_evidence": "https://android.googlesource.com/platform/development/+/refs/heads/main/host/windows/usb/api/adb_api.h (Apache-2.0 source header; archive NOTICE remains authoritative for redistributed binaries)"
+      },
+      {
+        "path": "NOTICE.txt",
+        "version": "37.0.1",
+        "sha256": "38ec8c6f5b7799c223ffeab1f9e81c2d5fc67b5e56d6424f649630ca1ee1a811",
+        "size": 1154131,
+        "role": "notice/version metadata",
+        "license": "Unmodified upstream license/version metadata",
+        "sign": false
+      },
+      {
+        "path": "source.properties",
+        "version": "37.0.1",
+        "sha256": "2dccd788c0234d8cf7f7457377e57f57527a86a629c6ed54feb8af0f549dac38",
+        "size": 38,
+        "role": "notice/version metadata",
+        "license": "Unmodified upstream license/version metadata",
+        "sign": false
+      }
+    ],
+    "binary_version_evidence": "37.0.1 appears in adb.exe; source.properties declares Pkg.Revision=37.0.1; Windows adb version not invoked in this local preparation"
+  },
+  "dotnet": {
+    "sdk": "10.0.401",
+    "runtime": "10.0.12",
+    "target": "win-x64",
+    "components": [
+      "Microsoft.NETCore.App.Runtime.win-x64",
+      "Microsoft.WindowsDesktop.App.Runtime.win-x64"
+    ],
+    "license": "MIT with upstream third-party notices",
+    "download_source": "https://api.nuget.org/v3/index.json",
+    "source_repositories": [
+      "https://github.com/dotnet/runtime",
+      "https://github.com/dotnet/wpf"
+    ],
+    "signing": "No re-signing of upstream DLLs; bundled in own self-contained EXE",
+    "resolved_packages": "See desktop/packages.lock.json and runtime-pack-inventory.json"
+  },
+  "own_artifacts": [
+    {
+      "path": "QRA-Config.exe",
+      "version": "1.0.0",
+      "sign": true,
+      "source": "desktop/",
+      "format": "Windows x64 self-contained WPF single-file EXE",
+      "contains_upstream": [
+        "ADB five-file ZIP",
+        "Microsoft .NET/WPF runtime"
+      ],
+      "notes": "Sign outer own EXE only; no nested third-party signing"
+    }
+  ]
+}

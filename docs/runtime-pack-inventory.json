@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "sdk": "10.0.401",
+  "packs": [
+    {
+      "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+      "version": "10.0.12",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.runtime.win-x64/10.0.12/microsoft.aspnetcore.app.runtime.win-x64.10.0.12.nupkg",
+      "sha256": "59025d88c8f5178e8569f91c7cbc56ad3ead3d83a777477d17fade3f9cdd8103",
+      "size": 12760211,
+      "use": "runtime/host"
+    },
+    {
+      "name": "Microsoft.NETCore.App.Host.win-x64",
+      "version": "10.0.12",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.win-x64/10.0.12/microsoft.netcore.app.host.win-x64.10.0.12.nupkg",
+      "sha256": "1fbc2fcae33182f41955db3391ecf8a1b4aa047429852651d419b6b16eb4a523",
+      "size": 5790931,
+      "use": "runtime/host"
+    },
+    {
+      "name": "Microsoft.NETCore.App.Runtime.win-x64",
+      "version": "10.0.12",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.win-x64/10.0.12/microsoft.netcore.app.runtime.win-x64.10.0.12.nupkg",
+      "sha256": "0f63dee7ca4383cb16848966f81e439399e2058e1671ebe27e5eaf4b200e8691",
+      "size": 39968868,
+      "use": "runtime/host"
+    },
+    {
+      "name": "Microsoft.WindowsDesktop.App.Ref",
+      "version": "10.0.12",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.windowsdesktop.app.ref/10.0.12/microsoft.windowsdesktop.app.ref.10.0.12.nupkg",
+      "sha256": "a26aee1fd30fa8e3454f8dc21a2dff643bb0f1492a229d246614dfabf08caf89",
+      "size": 7716539,
+      "use": "build-time reference"
+    },
+    {
+      "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+      "version": "10.0.12",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.windowsdesktop.app.runtime.win-x64/10.0.12/microsoft.windowsdesktop.app.runtime.win-x64.10.0.12.nupkg",
+      "sha256": "68bce56d2402969d82ac77fbd2b2a54f55fda86ea060366e6ddb832353dab80a",
+      "size": 39172884,
+      "use": "runtime/host"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+dist/
+dist-dotnet/
+prepared-public-source/
+.env
+*.pfx
+*.p12
