@@ -42,4 +42,19 @@ foreach(var profile in profiles){
     if(profile.Protocol=="DMR")Check(settings.ContainsKey("server:"+profile.Id+":userCallsign")&&settings.ContainsKey("dmrOptions:"+profile.Id),"DMR callsign and options available");
 }
 Check(settings["selectedServer:DMR"]!.GetValue<string>()=="dmr:qra-team.online:62030","Initializing an extra profile preserves existing phone default");
+
+// New Android profiles may share an endpoint and an icon; preserve their independent namespaces.
+foreach(var mode in new[]{"FRN","DMR","P25","POC"}) {
+    var shared=new JsonObject { ["frnServers"]="[]" };
+    var a=new ServerProfile("Shared A","shared.invalid",443,mode,ProfileId:"11111111-1111-4111-8111-111111111111");
+    var b=a with { Name="Shared B",ProfileId="22222222-2222-4222-8222-222222222222" };
+    ConfigModel.SaveProfile(shared,a);ConfigModel.SaveProfile(shared,b);
+    shared["server:"+a.Id+":userEmail"]="first";shared["server:"+b.Id+":userEmail"]="second";
+    var read=EditorPolicy.Profiles(shared,mode).Where(x=>!x.BuiltIn).ToArray();
+    Check(read.Length==2 && read[0].Id==a.Id && read[1].Id==b.Id,"shared endpoint profile identifiers: "+mode);
+    ConfigModel.SaveProfile(shared,b with { Name="Renamed" },b.Id);
+    ConfigModel.DeleteProfile(shared,b.Id);
+    Check(shared["server:"+a.Id+":userEmail"]?.GetValue<string>()=="first" && !shared.ContainsKey("server:"+b.Id+":userEmail"),"shared endpoint independent removal: "+mode);
+}
+
 Console.WriteLine($"PASS: {checks} editor policy checks, four-mode menus, exact profile isolation, no browse side effects, new profile fields/defaults.");

@@ -4,7 +4,7 @@ QRA-Config is not enrolled in SignPath Foundation and has no Foundation-signed r
 
 ## Scope and roles
 
-Proposed maintainer, committer, reviewer and signing approver: Viktor Zabirov (`krot4u`). Role assignment and MFA on both GitHub and SignPath must be confirmed before applying. External contributions require review; each production signing request requires manual approval.
+The repository owner is the proposed maintainer, committer, reviewer and signing approver. Role assignment and MFA on both GitHub and SignPath must be confirmed before applying. External contributions require review; each production signing request requires manual approval.
 
 The signing scope is the outer **QRA-Config.exe**, product QRA-Config, version 1.0.0 / file version 1.0.0.0, built from `desktop/` by `.github/workflows/build.yml`. This self-contained executable embeds ADB and Microsoft runtime components. The inventory explicitly identifies them for Foundation review. Neither nested ADB/DLL files nor Microsoft runtime libraries are re-signed as our own. No PowerShell script is shipped by the current WPF application; build/test scripts are source files, not requested Windows signing artifacts. Legacy Go/PowerShell executables and scripts are excluded.
 

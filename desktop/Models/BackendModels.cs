@@ -13,7 +13,7 @@ public sealed record ConfigSnapshot(string Baseline, JsonObject Config, JsonObje
     public JsonObject Settings => (JsonObject)Config["settings"]!;
     public ConfigSnapshot DeepCopy() => new(Baseline, (JsonObject)Config.DeepClone(), (JsonObject)Metadata.DeepClone());
 }
-public sealed record ServerProfile(string Name, string Address, int Port, string Protocol, bool BuiltIn = false, string Charset = "cp1251", string Icon = "cloud")
+public sealed record ServerProfile(string Name, string Address, int Port, string Protocol, bool BuiltIn = false, string Charset = "cp1251", string Icon = "cloud", string ProfileId = "")
 {
-    public string Id => (Protocol == "FRN" ? "" : Protocol.ToLowerInvariant()+":") + Address.Trim().ToLowerInvariant()+":"+Port;
+    public string Id => (Protocol == "FRN" ? "" : Protocol.ToLowerInvariant()+":") + Address.Trim().ToLowerInvariant()+(ProfileId.Length == 0 ? "" : "#"+ProfileId)+":"+Port;
 }

@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using QraConfig.Models;
 using QraConfig.Services;
 
@@ -14,6 +15,13 @@ namespace QraConfig.Desktop;
 
 public partial class MainWindow : Window
 {
+    public static readonly DependencyProperty IsKeyboardFocusModeProperty = DependencyProperty.Register(
+        nameof(IsKeyboardFocusMode), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+    public bool IsKeyboardFocusMode
+    {
+        get => (bool)GetValue(IsKeyboardFocusModeProperty);
+        private set => SetValue(IsKeyboardFocusModeProperty, value);
+    }
     private BackendService? _backend;
     private readonly CancellationTokenSource _lifetime = new();
     private ConfigSnapshot? _original, _draft;
@@ -39,8 +47,33 @@ public partial class MainWindow : Window
         {
             if (e.Key == Key.F5 && RefreshButton.IsEnabled) { Refresh_Click(this, new RoutedEventArgs()); e.Handled = true; }
             if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Control && ApplyButton.IsEnabled) { Apply_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            if ((e.Key is Key.Escape or Key.Back) && NavigationDepth > 0) { NavigateBack(); e.Handled = true; }
         };
         RenderEditor();
+    }
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e) => IsKeyboardFocusMode = true;
+    private void Window_PreviewPointerDown(object sender, InputEventArgs e) => IsKeyboardFocusMode = false;
+    private void MenuScroll_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (e.NewFocus is not FrameworkElement target) return;
+        Dispatcher.BeginInvoke(() =>
+        {
+            target.BringIntoView();
+            UpdateMenuFades();
+        }, DispatcherPriority.Loaded);
+    }
+    private void MenuScroll_ScrollChanged(object sender, ScrollChangedEventArgs e) => UpdateMenuFades();
+    private void UpdateMenuFades()
+    {
+        SetFades(MasterMenuScroll, MasterTopFade, MasterBottomFade);
+        var detail = EditorScroll.Visibility == Visibility.Visible ? EditorScroll : DetailMenuScroll;
+        SetFades(detail, DetailTopFade, DetailBottomFade);
+    }
+    private static void SetFades(ScrollViewer viewer, UIElement top, UIElement bottom)
+    {
+        bool visible = viewer.Visibility == Visibility.Visible && viewer.ScrollableHeight > 0.5;
+        top.Visibility = visible && viewer.VerticalOffset > 0.5 ? Visibility.Visible : Visibility.Collapsed;
+        bottom.Visibility = visible && viewer.VerticalOffset < viewer.ScrollableHeight - 0.5 ? Visibility.Visible : Visibility.Collapsed;
     }
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
     internal static void DarkTitle(Window window)
@@ -108,7 +141,7 @@ public partial class MainWindow : Window
             if (_token.Length > 0)
             {
                 await _backend!.EndAsync(_serial, _token, _lifetime.Token);
-                _token = ""; _serial = ""; _original = _draft = null; _invalid.Clear(); _profile = "";
+                _token = ""; _serial = ""; _original = _draft = null; _invalid.Clear(); _profile = ""; _sectionOpen = false; _settingsSection = ""; _showModeSettings = false;
                 RenderEditor(); Status("Сеанс завершён. Настройки на телефоне сохранены."); return;
             }
             if (DevicePicker.SelectedItem is not DeviceInfo { IsReady: true } device) return;
@@ -116,20 +149,24 @@ public partial class MainWindow : Window
             if (InstallBeforeConnect.IsChecked == true) await InstallSelectedAsync(device.Serial);
             var started = await _backend!.BeginAsync(_serial, _lifetime.Token); _token = started.Token;
             Status("Ожидание подтверждения: разрешите QRA-Config доступ к настройкам на телефоне.", "busy");
-            for (int i = 0; i < 300; i++)
-            {
-                var state = await _backend.StatusAsync(_serial, _token, _lifetime.Token);
-                if (state.Status == "closed") { _token = ""; throw new InvalidOperationException("Доступ отклонён или сеанс завершён. Подключитесь заново."); }
-                if (state.Status == "ready") { await ReadCoreAsync(); return; }
-                await Task.Delay(2000, _lifetime.Token);
-            }
-            throw new InvalidOperationException("Время ожидания истекло. Подключитесь заново.");
+            var snapshot = await BackendService.WaitForConsentAndReadAsync(
+                ct => _backend.StatusAsync(_serial, _token, ct),
+                ct => _backend.ReadAsync(_serial, _token, ct),
+                attempts: 90,
+                pollDelay: TimeSpan.FromSeconds(2),
+                ct: _lifetime.Token);
+            LoadSnapshot(snapshot);
         }, "Подключаемся к телефону…");
     }
     private async Task ReadCoreAsync()
     {
         var snapshot = await _backend!.ReadAsync(_serial, _token, _lifetime.Token);
+        LoadSnapshot(snapshot);
+    }
+    private void LoadSnapshot(ConfigSnapshot snapshot)
+    {
         _original = snapshot; _draft = snapshot.DeepCopy(); _invalid.Clear();
+        _sectionOpen = false; _mode = "COMMON"; _navigationMode = "COMMON"; _profile = ""; _settingsSection = ""; _showModeSettings = false;
         RenderEditor(); Status("Готово: настройки прочитаны. Выберите раздел и профиль.");
     }
     private async void Read_Click(object sender, RoutedEventArgs e)
@@ -191,15 +228,16 @@ public partial class MainWindow : Window
         }, "Применяем настройки и проверяем результат…");
     }
     private void MarkEdited(string key) => UpdateDirty();
-    private void Mode_Checked(object sender, RoutedEventArgs e)
+    private void MasterBack_Click(object sender, RoutedEventArgs e)
     {
-        if (!_ready || _building || sender is not RadioButton button) return;
-        Navigate((string)button.Tag, "");
+        if (NavigationDepth == 2) { _sectionOpen = false; _profile = ""; _settingsSection = ""; _showModeSettings = false; RenderEditor(); }
+        else DevicePicker.Focus();
     }
-    private void Navigate(string mode, string profile)
+    private void DetailBack_Click(object sender, RoutedEventArgs e) => NavigateBack();
+    private void SettingsNavigationHost_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (_invalid.Count > 0) { Status("Исправьте отмеченные поля перед переходом.", "error"); _building = true; foreach (var rb in ModeNavigation.Children.OfType<RadioButton>()) rb.IsChecked = (string)rb.Tag == _mode; foreach (var tab in ProfileMenu.Children.OfType<RadioButton>()) tab.IsChecked = (string)tab.Tag == _profile; _building = false; return; }
-        _mode = mode; _profile = profile; RenderEditor(); EditorScroll.ScrollToTop();
+        if (SettingsNavigationHost.ActualWidth <= 0) return;
+        MasterColumn.Width = new GridLength(Math.Clamp(SettingsNavigationHost.ActualWidth * 0.36, 200, 280));
     }
     private static string ScopeLabel(string scope) => scope switch { "COMMON" => "Общие", "POC" => "PoC", _ => scope };
     private void Help_Click(object sender, RoutedEventArgs e) => ShowInformation("Подключение по USB",

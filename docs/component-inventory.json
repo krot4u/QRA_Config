@@ -79,6 +79,14 @@
     "signing": "No re-signing of upstream DLLs; bundled in own self-contained EXE",
     "resolved_packages": "See desktop/packages.lock.json and runtime-pack-inventory.json"
   },
+  "material_icons": {
+    "source_repository": "https://github.com/google/material-design-icons",
+    "source_package": "@material-design-icons/svg 0.14.15",
+    "license": "Apache-2.0",
+    "format": "18 filled SVG paths with a 24x24 viewBox",
+    "inventory": "docs/icon-contract.json",
+    "notice": "docs/third-party-notices.md"
+  },
   "own_artifacts": [
     {
       "path": "QRA-Config.exe",
@@ -88,7 +96,8 @@
       "format": "Windows x64 self-contained WPF single-file EXE",
       "contains_upstream": [
         "ADB five-file ZIP",
-        "Microsoft .NET/WPF runtime"
+        "Microsoft .NET/WPF runtime",
+        "Google Material Icons SVG paths"
       ],
       "notes": "Sign outer own EXE only; no nested third-party signing"
     }

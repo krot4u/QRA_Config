@@ -76,7 +76,7 @@ public partial class MainWindow
         save.Click+=(_,_)=>{
             if(!int.TryParse(port.Text,NumberStyles.None,CultureInfo.InvariantCulture,out var number)||number<1||number>65535){error.Text="Укажите порт 1–65535.";return;}
             try {
-                var profile=new ServerProfile(name.Text.Trim(),address.Text.Trim(),number,_mode,Charset:(string)charset.SelectedValue,Icon:(string)icon.SelectedValue);
+                var profile=new ServerProfile(name.Text.Trim(),address.Text.Trim(),number,_mode,Charset:(string)charset.SelectedValue,Icon:(string)icon.SelectedValue,ProfileId:existing?.ProfileId??"");
                 ConfigModel.SaveProfile(_draft.Settings,profile,existing?.Id);EditorPolicy.InitializeProfile(_draft.Settings,profile);_profile=profile.Id;
                 MarkEdited("selectedServer:"+_mode);window.DialogResult=true;
             }catch(InvalidOperationException ex){error.Text=ex.Message;}

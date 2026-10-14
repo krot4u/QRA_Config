@@ -6,7 +6,7 @@
 
 1. Запустите `QRA-Config.exe`. Комплект содержит .NET runtime и ADB; устанавливать PowerShell или отдельный runtime не требуется.
 2. Подключите Android USB-кабелем с передачей данных, включите «Отладку по USB» и подтвердите доступ компьютера на телефоне. Некоторым устройствам нужен USB-драйвер производителя.
-3. Выберите устройство и подтвердите разрешение настройки в QRA-Talk. Разрешение действует десять минут.
+3. Выберите устройство и нажмите «Подключить». QRA-Config покажет ожидание подтверждения, а после разрешения в QRA-Talk автоматически прочитает настройки; нажимать «Прочитать заново» не нужно. Разрешение действует десять минут.
 4. Откройте режим, затем профиль в дополнительном меню. На его странице настройте подключение, звук и параметры режима. Выбор страницы не переключает активный профиль на телефоне.
 5. Отметьте разделы для применения и нажмите «Применить». Если настройки параллельно изменились на телефоне, перечитайте их перед повторной записью.
 
@@ -16,11 +16,11 @@
 
 ## Состояние и совместимость
 
-Нужна QRA-Talk с USB-мостом настройки. Публичная QRA-Talk 293 не содержит USB-мост: её настройки через QRA-Config недоступны. Проверка выполнена с отдельной review-версией 298. Этот выпуск не включает и не публикует Android 298.
+Нужна QRA-Talk с USB-мостом настройки. Совместимость с текущим публичным APK перед первым выпуском требуется подтвердить отдельно; наличие review-моста в тестовой копии не подтверждает доступность функции в публичной версии.
 
-Проверенный Windows-кандидат на Acer прошёл запуск, меню профилей, встроенную справку, USB-чтение, изменение одной общей настройки и полное восстановление исходной конфигурации. Defender: сканирование завершилось успешно, новых обнаружений после проверок нет; защита оставалась включена. Автоматические проверки: 20 Core и 111 EditorPolicy. SHA-256 проверенного EXE: `8efb3a88a4b6a46f26335eebab0b2e0c92ccc4cc238dbec9387d2eb27eacb98f`.
+Новая C#-версия собирается отдельно в `dist-dotnet/`. Модели и службы проходят 13 .NET-проверок, редактор — 111. Две чистые локальные сборки дали одинаковые байты. Запуск CI в GitHub, Windows-проверка исправленного интерфейса и Defender для нового EXE ещё не выполнены; USB read/apply/restore ждёт разрешения ADB на Xiaomi. Это не завершённый релиз.
 
-Программа также устанавливает QRA-Talk из локального APK или публичного канала загрузки и открывает встроенное руководство. Установка требует разрешения Android на USB-установку. QRA-Talk распространяется отдельно; этот репозиторий не публикует Android APK.
+Старый Go/PowerShell прототип в `dist/` не публикуется: Defender зарегистрировал у его процесса `Behavior:Win32/SuspClickFix.G2`. Положительные функциональные тесты не отменяют это обнаружение. Защита и исключения не изменяются.
 
 .NET 10 официально поддерживает Windows 11 и указанные Microsoft версии Windows 10 LTSC. Обычная Windows 10 22H2 в UTM используется для фактической проверки совместимости, но не является официально поддерживаемой Microsoft конфигурацией .NET 10. См. [поддерживаемые ОС .NET 10](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md).
 
@@ -43,7 +43,7 @@ bash scripts/build-dotnet.sh
 
 ## License and public preparation
 
-Own QRA-Config sources are licensed under **GPL-3.0-only**; see the complete [LICENSE](LICENSE). Third-party components retain their upstream licenses and notices. QRA-Talk is separately licensed and its private sources are excluded. The owner authorized publication of the included QRA artwork and embedded guide with QRA-Config. The GPL license does not grant trademark rights or imply endorsement of modified versions.
+Own QRA-Config sources are licensed under **GPL-3.0-only**; see the complete [LICENSE](LICENSE). Third-party components retain their upstream licenses and notices. QRA-Talk is separately licensed and its private sources are excluded. Rights to redistribute QRA branding must be confirmed by the owner before the public export.
 
 The prepared workflow assumes this directory becomes the root of an independent repository. It runs tests and compares two clean builds with SDK 10.0.401, runtime 10.0.12 and locked dependencies; it has no signing, release, S3 or application-submission step. The current local candidate is not a public release. Run build commands from this directory so global.json is applied.
 

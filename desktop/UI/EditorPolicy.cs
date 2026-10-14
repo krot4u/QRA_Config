@@ -12,7 +12,7 @@ public static class EditorPolicy
         if (mode == "P25") rows.Add(new("QRA-P25", "p25.qra-team.online", 443, mode, true, Icon: "radio"));
         rows.AddRange(ConfigModel.ProfileRows(settings).Select(x => x!.AsObject()).Where(x => (x["protocol"]?.GetValue<string>() ?? "FRN") == mode)
             .Select(x => new ServerProfile(x["name"]!.GetValue<string>(), x["address"]!.GetValue<string>(), x["port"]!.GetValue<int>(), mode,
-                Charset: x["charset"]?.GetValue<string>() ?? "cp1251", Icon: x["icon"]?.GetValue<string>() ?? "cloud")).OrderBy(x => x.Name, StringComparer.CurrentCulture));
+                Charset: x["charset"]?.GetValue<string>() ?? "cp1251", Icon: x["icon"]?.GetValue<string>() ?? "cloud", ProfileId: x["profileId"]?.GetValue<string>() ?? "")).OrderBy(x => x.Name, StringComparer.CurrentCulture));
         return rows;
     }
     public static bool Owns(string key, string profileId) =>

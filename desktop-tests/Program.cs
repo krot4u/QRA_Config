@@ -16,6 +16,31 @@ Check(profiles.ContainsKey("server:poc:example.org:444:userPassword") && !profil
 var before=profiles.ToJsonString();try { ConfigModel.SaveProfile(profiles,new("bad","example.org",0,"POC")); throw new Exception("invalid accepted"); } catch(InvalidOperationException) {} Check(before==profiles.ToJsonString(),"invalid profile atomicity");
 Check(!AvatarPolicy.ValidJpeg([255,216,255,217]),"invalid avatar rejected");
 
+var expectedIcons = new Dictionary<string, string>
+{
+    ["general"] = "settings", ["dmr"] = "settings_input_antenna", ["p25"] = "shield", ["frn"] = "public", ["poc"] = "signal_cellular_alt",
+    ["general.startup"] = "power_settings_new", ["general.appearance"] = "palette", ["general.scan"] = "radar", ["general.screen"] = "smartphone", ["general.sound"] = "volume_up", ["general.buttons"] = "gamepad",
+    ["mode.profile"] = "dns", ["mode.settings"] = "tune", ["mode.add_profile"] = "add", ["import"] = "file_download", ["export"] = "file_upload", ["docs"] = "menu_book", ["about"] = "info",
+};
+Check(expectedIcons.Count == SettingsIconContract.Icons.Count && expectedIcons.All(expected => SettingsIconContract.Get(expected.Key).MaterialSymbol == expected.Value), "settings icon ids and names match contract");
+Check(SettingsIconContract.Icons.Values.Select(icon => icon.MaterialSymbol).Distinct().Count() == SettingsIconContract.Icons.Count, "settings icons are unique");
+Check(SettingsIconContract.Icons.Values.All(icon => icon.SvgPath.Length > 0), "settings icons contain SVG paths");
+
+var consentStatuses = new Queue<SessionStatus>([
+    new("token","waiting","", ""),
+    new("token","waiting","", ""),
+    new("token","ready","", ""),
+]);
+var consentReadCount=0;
+var consentSnapshot=new ConfigSnapshot("a".PadLeft(64,'a'),Configuration(),new JsonObject());
+var consentResult=await BackendService.WaitForConsentAndReadAsync(
+    _=>Task.FromResult(consentStatuses.Dequeue()),
+    _=>{consentReadCount++;return Task.FromResult(consentSnapshot);},
+    attempts:3,
+    pollDelay:TimeSpan.Zero,
+    CancellationToken.None);
+Check(ReferenceEquals(consentResult,consentSnapshot)&&consentReadCount==1&&consentStatuses.Count==0,"USB consent automatically reads settings when ready");
+
 var cache=Path.Combine(Path.GetTempPath(),"qra-config-dotnet-test-"+Guid.NewGuid().ToString("N")); try { var executable=AdbBundle.Extract(cache); Check(File.Exists(executable),"embedded official ADB extraction verifies hashes"); File.WriteAllText(executable,"tampered"); Check(new FileInfo(AdbBundle.Extract(cache)).Length>1000,"tampered cache repaired"); } finally { Directory.Delete(cache,true); }
 
 var fallbackSettings=Configuration()["settings"]!.AsObject(); ConfigModel.SaveProfile(fallbackSettings,new("DMR","example.org",62030,"DMR")); fallbackSettings["selectedServer:DMR"]="dmr:example.org:62030"; ConfigModel.DeleteProfile(fallbackSettings,"dmr:example.org:62030"); Check(fallbackSettings["selectedServer:DMR"]!.GetValue<string>()=="dmr:qra-team.online:62030","deleted selected profile chooses builtin fallback");

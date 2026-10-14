@@ -4,7 +4,9 @@ using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using QraConfig.Models;
@@ -18,6 +20,7 @@ public partial class MainWindow
     {
         public override string ToString() => Label;
     }
+    private sealed record NavigationItem(string Id, string Title, string Detail, string IconId, Action Open);
     private static readonly Dictionary<string, string> Labels = new()
     {
         ["userEmail"]="Логин / e-mail",["userPassword"]="Пароль",["userCallsign"]="Позывной",["userDisplayName"]="Имя",["userCity"]="Город",["userLocation"]="Местоположение",["userNation"]="Страна",["userDescription"]="Описание",["userNetwork"]="Комната / Talkgroup",
@@ -45,33 +48,159 @@ public partial class MainWindow
     private string _settingsSection = "";
     private string _navigationMode = "";
     private bool _showModeSettings;
+    private bool _sectionOpen;
+    private int _renderedNavigationDepth;
 
     private static string SettingsSection(string key) => key switch
     {
+        "autoStartAndConnect" => "Запуск",
         "appTheme" or "accentColor" or "uiScalePercent" => "Оформление",
         "scanHoldSeconds" => "Сканирование",
         "keepScreenOn" or "wakeScreenOnPtt" => "Экран",
         "audioInputDevice" or "audioOutputDevice" or "automaticMicLevel" or "automaticRxLevel" or "micGain" or "bassDb" or "trebleDb" or "rogerBeepRx" or "rogerBeepTx" or "rogerBeepRxTone" or "rogerBeepTxTone" => "Звук",
         "showScreenPtt" or "menuKeyHoldMs" or "carPttSide" => "Кнопки",
-        _ => "Дополнительно"
+        _ => "Запуск"
     };
     private void OpenSettingsPage(Action navigate)
     {
         if (_invalid.Count > 0) { Status("Исправьте отмеченные поля перед переходом.", "error"); return; }
         navigate(); RenderEditor(); EditorScroll.ScrollToTop();
     }
-    private void AddMenuRow(StackPanel panel, string title, string detail, Action open)
+    private void AddNavigationTile(StackPanel panel, NavigationItem item, bool selected, bool enabled = true)
     {
         var content = new Grid();
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var labels = new StackPanel(); labels.Children.Add(Text(title, 14));
-        if (detail.Length > 0) { var hint = Text(detail, 12, true); hint.Margin = new Thickness(0,3,0,0); labels.Children.Add(hint); }
-        content.Children.Add(labels); var arrow = Text("›", 22, true); arrow.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(arrow,1); content.Children.Add(arrow);
-        var button = new Button { Content = content, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(12,9,12,9), Margin = new Thickness(0,0,0,6) };
-        // The base button template centers content; give the menu row its available width.
-        button.SizeChanged += (_, _) => content.Width = Math.Max(0, button.ActualWidth - 28);
-        AutomationProperties.SetName(button, title); button.Click += (_, _) => OpenSettingsPage(open); panel.Children.Add(button);
+        var disabledInk = (Brush)FindResource("DisabledInkBrush");
+        var disabledMuted = (Brush)FindResource("DisabledMutedBrush");
+        var iconDefinition = SettingsIconContract.Get(item.IconId);
+        var icon = new Viewbox
+        {
+            Width = 22,
+            Height = 22,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false,
+            Child = new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse(iconDefinition.SvgPath),
+                Fill = enabled ? Amber : disabledMuted,
+                Stretch = Stretch.Uniform,
+            },
+        };
+        content.Children.Add(icon);
+        var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var title = Text(item.Title, 14); title.Foreground = enabled ? Ink : disabledInk; title.FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal; title.MaxHeight = 40; title.TextTrimming = TextTrimming.WordEllipsis;
+        labels.Children.Add(title);
+        if (item.Detail.Length > 0)
+        {
+            var hint = Text(item.Detail, 12, true); hint.Foreground = enabled ? Muted : disabledMuted; hint.Margin = new Thickness(0,3,0,0); hint.TextWrapping = TextWrapping.NoWrap; hint.TextTrimming = TextTrimming.WordEllipsis;
+            labels.Children.Add(hint);
+        }
+        Grid.SetColumn(labels, 1); content.Children.Add(labels);
+        var arrow = Text("›", 22); arrow.Foreground = enabled ? Amber : disabledMuted; arrow.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(arrow,2); content.Children.Add(arrow);
+        var button = new Button { Content = content, Style = (Style)FindResource("SettingsMenuTile"), Tag = selected ? "selected" : null, IsEnabled = enabled };
+        AutomationProperties.SetName(button, selected ? item.Title + ", выбран" : item.Title);
+        AutomationProperties.SetHelpText(button, item.Detail);
+        AutomationProperties.SetItemStatus(button, selected ? "Выбран раздел" : "");
+        button.Click += (_, _) => OpenSettingsPage(item.Open);
+        button.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key is Key.Down or Key.Up)
+            {
+                var buttons = panel.Children.OfType<Button>().Where(x => x.IsEnabled).ToList();
+                int index = buttons.IndexOf(button); int step = e.Key == Key.Down ? 1 : -1;
+                if (buttons.Count > 0) buttons[(index + step + buttons.Count) % buttons.Count].Focus();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Right)
+            {
+                button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); e.Handled = true;
+            }
+            else if (e.Key == Key.Left && NavigationDepth > 0)
+            {
+                NavigateBack(); e.Handled = true;
+            }
+        };
+        panel.Children.Add(button);
+    }
+    private int NavigationDepth => !_sectionOpen ? 0 : _profile.Length > 0 || _settingsSection.Length > 0 || _showModeSettings ? 2 : 1;
+    private string ModeDetail(string mode)
+    {
+        if (_draft == null) return "";
+        var profiles = EditorPolicy.Profiles(_draft.Settings, mode);
+        var selectedId = _draft.Settings["selectedServer:" + mode]?.GetValue<string>();
+        return profiles.FirstOrDefault(x => x.Id == selectedId)?.Name ?? profiles.FirstOrDefault()?.Name ?? "";
+    }
+    private IReadOnlyList<NavigationItem> RootNavigationItems() =>
+    [
+        new("COMMON", "Общие", "6 подразделов", "general", () => OpenRootSection("COMMON")),
+        new("DMR", "DMR", ModeDetail("DMR"), "dmr", () => OpenRootSection("DMR")),
+        new("P25", "P25", ModeDetail("P25"), "p25", () => OpenRootSection("P25")),
+        new("FRN", "FRN", ModeDetail("FRN"), "frn", () => OpenRootSection("FRN")),
+        new("POC", "PoC", ModeDetail("POC"), "poc", () => OpenRootSection("POC")),
+    ];
+    private IReadOnlyList<NavigationItem> GeneralNavigationItems() =>
+    [
+        new("Запуск", "Запуск", "Автозапуск и подключение", "general.startup", () => _settingsSection = "Запуск"),
+        new("Оформление", "Оформление", "Тема, акцентный цвет и масштаб", "general.appearance", () => _settingsSection = "Оформление"),
+        new("Сканирование", "Сканирование", "Пауза после приёма", "general.scan", () => _settingsSection = "Сканирование"),
+        new("Экран", "Экран", "Отключение и пробуждение экрана", "general.screen", () => _settingsSection = "Экран"),
+        new("Звук", "Звук", "Устройства, уровни и сигналы", "general.sound", () => _settingsSection = "Звук"),
+        new("Кнопки", "Кнопки", "Экранная PTT и поведение меню", "general.buttons", () => _settingsSection = "Кнопки"),
+    ];
+    private IReadOnlyList<NavigationItem> ModeNavigationItems()
+    {
+        var result = Profiles().Select(profile =>
+        {
+            var selectedProfile = profile;
+            return new NavigationItem(profile.Id, profile.Name, profile.Address + ":" + profile.Port + (profile.BuiltIn ? " · встроенный сервер" : ""), "mode.profile", () => _profile = selectedProfile.Id);
+        }).ToList();
+        result.Add(new NavigationItem("mode-settings", "Параметры режима", "Профиль по умолчанию и настройки режима", "mode.settings", () => _showModeSettings = true));
+        if (_mode != "P25") result.Add(new NavigationItem("add-profile", "Добавить профиль", "Новый сервер " + ScopeLabel(_mode), "mode.add_profile", () => EditProfile(null)));
+        return result;
+    }
+    private void OpenRootSection(string mode)
+    {
+        _sectionOpen = true; _mode = mode; _navigationMode = mode; _profile = ""; _settingsSection = ""; _showModeSettings = false;
+    }
+    private void NavigateBack()
+    {
+        if (NavigationDepth == 2) { _profile = ""; _settingsSection = ""; _showModeSettings = false; }
+        else if (NavigationDepth == 1) { _sectionOpen = false; _profile = ""; _settingsSection = ""; _showModeSettings = false; }
+        else { DevicePicker.Focus(); return; }
+        RenderEditor();
+    }
+    private void ConfigureHeader(Button button, TextBlock label, string title, bool visible = true)
+    {
+        label.Text = title; button.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        AutomationProperties.SetName(button, "Назад. " + title);
+    }
+    private void RenderNavigationMenu(StackPanel panel, IEnumerable<NavigationItem> items, string selectedId, bool enabled = true)
+    {
+        panel.Children.Clear();
+        foreach (var item in items) AddNavigationTile(panel, item, item.Id == selectedId, enabled);
+    }
+    private void ShowDetail(UIElement element)
+    {
+        EmptyDetailHint.Visibility = element == EmptyDetailHint ? Visibility.Visible : Visibility.Collapsed;
+        DetailMenuScroll.Visibility = element == DetailMenuScroll ? Visibility.Visible : Visibility.Collapsed;
+        EditorScroll.Visibility = element == EditorScroll ? Visibility.Visible : Visibility.Collapsed;
+        Dispatcher.BeginInvoke(UpdateMenuFades);
+    }
+    private void AnimateNavigation(int previousDepth, int depth)
+    {
+        NavigationTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+        NavigationTranslate.X = 0;
+        if (previousDepth == depth || !SystemParameters.ClientAreaAnimation) return;
+        double distance = Math.Max(200, MasterColumn.ActualWidth);
+        var animation = new DoubleAnimation(depth > previousDepth ? distance : -distance, 0, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.Stop,
+        };
+        NavigationTranslate.BeginAnimation(TranslateTransform.XProperty, animation, HandoffBehavior.SnapshotAndReplace);
     }
     private void RenderEditor()
     {
@@ -80,57 +209,61 @@ public partial class MainWindow
         try
         {
             if (_navigationMode != _mode) { _navigationMode = _mode; _settingsSection = ""; _showModeSettings = false; }
-            EditorPanel.Children.Clear(); ProfileMenu.Children.Clear();
-            if (_draft == null)
-            {
-                var info = Card("Подключите устройство", "Настройки появятся после подтверждения доступа в QRA-Talk.");
-                info.Children.Add(Text("Подключите USB-кабель, включите отладку по USB и разрешите доступ компьютеру. Назначения физических кнопок остаются на телефоне.", 14, true));
-                ProfileMenu.Children.Add(Text("Настройки", 13, true)); return;
-            }
+            int previousDepth = _renderedNavigationDepth;
+            EditorPanel.Children.Clear(); DetailMenuPanel.Children.Clear();
             if (_profile.Length > 0 && CurrentProfile() == null) _profile = "";
-            bool nested = _profile.Length > 0 || _settingsSection.Length > 0 || _showModeSettings;
-            if (nested)
-                ProfileMenu.Children.Add(ActionButton("← Назад", () => OpenSettingsPage(() => { _profile = ""; _settingsSection = ""; _showModeSettings = false; })));
-            string path = ScopeLabel(_mode);
-            if (CurrentProfile() is { } currentProfile) path += " / " + currentProfile.Name;
-            else if (_settingsSection.Length > 0) path += " / " + _settingsSection;
-            else if (_showModeSettings) path += " / Параметры режима";
-            var breadcrumb = Text(path, 13, true); breadcrumb.VerticalAlignment = VerticalAlignment.Center; ProfileMenu.Children.Add(breadcrumb);
-            if (CurrentProfile() is { } selected) RenderProfile(selected);
-            else if (_mode == "COMMON") RenderMode();
-            else if (_showModeSettings) RenderMode();
+            int depth = NavigationDepth;
+            if (depth < 2)
+            {
+                MasterRootHeader.Visibility = Visibility.Visible;
+                ConfigureHeader(MasterBackButton, MasterHeaderText, "", false);
+                RenderNavigationMenu(MasterMenuPanel, RootNavigationItems(), depth == 0 ? "" : _mode, _draft != null);
+            }
             else
             {
-                var menu = Card("Профили " + ScopeLabel(_mode), "Выберите сервер, чтобы настроить подключение, звук и отображение.");
-                foreach (var profile in Profiles())
-                {
-                    var selectedProfile = profile;
-                    AddMenuRow(menu, profile.Name, profile.Address + ":" + profile.Port + (profile.BuiltIn ? " · встроенный сервер" : ""), () => _profile = selectedProfile.Id);
-                }
-                menu.Children.Add(ActionButton("+ Добавить профиль", () => EditProfile(null)));
-                AddMenuRow(Card("Параметры режима"), "Общие параметры " + ScopeLabel(_mode), "Профиль по умолчанию и настройки режима", () => _showModeSettings = true);
+                MasterRootHeader.Visibility = Visibility.Collapsed;
+                ConfigureHeader(MasterBackButton, MasterHeaderText, ScopeLabel(_mode));
+                RenderNavigationMenu(MasterMenuPanel, _mode == "COMMON" ? GeneralNavigationItems() : ModeNavigationItems(), _mode == "COMMON" ? _settingsSection : _showModeSettings ? "mode-settings" : _profile);
             }
+            if (_draft == null)
+            {
+                ConfigureHeader(DetailBackButton, DetailHeaderText, "", false);
+                EmptyDetailHint.Text = "Подключите устройство, чтобы прочитать настройки"; ShowDetail(EmptyDetailHint);
+            }
+            else if (depth == 0)
+            {
+                ConfigureHeader(DetailBackButton, DetailHeaderText, "", false);
+                EmptyDetailHint.Text = "Выберите раздел"; ShowDetail(EmptyDetailHint);
+            }
+            else if (depth == 1)
+            {
+                ConfigureHeader(DetailBackButton, DetailHeaderText, ScopeLabel(_mode));
+                RenderNavigationMenu(DetailMenuPanel, _mode == "COMMON" ? GeneralNavigationItems() : ModeNavigationItems(), "");
+                ShowDetail(DetailMenuScroll);
+            }
+            else
+            {
+                string title = CurrentProfile()?.Name ?? (_settingsSection.Length > 0 ? _settingsSection : "Параметры режима");
+                ConfigureHeader(DetailBackButton, DetailHeaderText, title);
+                ShowDetail(EditorScroll);
+                if (CurrentProfile() is { } selected) RenderProfile(selected);
+                else RenderMode();
+            }
+            _renderedNavigationDepth = depth;
+            AnimateNavigation(previousDepth, depth);
         }
         finally { _building = false; UpdateDirty(); }
     }
     private void RenderMode()
     {
         var items = _draft!.Settings.ToArray().Where(x => IsVisibleSetting(x.Key) && ConfigModel.ScopeFor(x.Key) == _mode).ToList();
+        if (_mode == "COMMON" && !_draft.Settings.ContainsKey("autoStartAndConnect")) items.Add(new KeyValuePair<string, JsonNode?>("autoStartAndConnect", JsonValue.Create(false)));
         if (_mode == "COMMON" && !_draft.Settings.ContainsKey("accentColor")) items.Add(new KeyValuePair<string, JsonNode?>("accentColor", JsonValue.Create("__default")));
-        if (_mode == "COMMON" && _settingsSection.Length == 0)
-        {
-            var menu = Card("Общие", "Разделы соответствуют настройкам QRA-Talk.");
-            foreach (string section in new[] { "Оформление", "Сканирование", "Экран", "Звук", "Кнопки", "Дополнительно" }.Where(section => items.Any(item => SettingsSection(item.Key) == section)))
-            {
-                string target = section;
-                string detail = section switch { "Оформление" => "Тема, акцентный цвет и масштаб", "Сканирование" => "Пауза после приёма", "Экран" => "Отключение и пробуждение экрана", "Звук" => "Устройства, уровни и сигналы", "Кнопки" => "Экранная PTT и поведение меню", _ => "Другие параметры приложения" };
-                AddMenuRow(menu, section, detail, () => _settingsSection = target);
-            }
-            return;
-        }
         var panel = Card(_mode == "COMMON" ? _settingsSection : "Параметры " + ScopeLabel(_mode));
-        foreach (var item in items.Where(item => _mode != "COMMON" || SettingsSection(item.Key) == _settingsSection))
+        var visibleItems = items.Where(item => _mode != "COMMON" || SettingsSection(item.Key) == _settingsSection).ToList();
+        foreach (var item in visibleItems)
             AddSetting(panel, item.Key, item.Value, value => SetSetting(item.Key, value));
+        if (visibleItems.Count == 0) panel.Children.Add(Text("В этом разделе пока нет переносимых настроек.", 13, true));
     }
     private void RenderProfile(ServerProfile profile)
     {

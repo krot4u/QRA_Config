@@ -7,5 +7,6 @@
     <Compile Include="../desktop/Services/AdbBundle.cs" Link="Services/AdbBundle.cs" />
     <EmbeddedResource Include="../internal/bundle/platform-tools.zip" LogicalName="QraConfig.Adb.zip" />
     <EmbeddedResource Include="../internal/bundle/manifest.json" LogicalName="QraConfig.Adb.manifest.json" />
+    <EmbeddedResource Include="../docs/icon-contract.json" LogicalName="QraConfig.IconContract.json" />
   </ItemGroup>
 </Project>

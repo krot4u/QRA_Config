@@ -17,6 +17,7 @@
     <Resource Include="../gui/assets/qra-config.png" Link="Assets/qra-config.png" />
     <EmbeddedResource Include="../internal/bundle/platform-tools.zip" LogicalName="QraConfig.Adb.zip" />
     <EmbeddedResource Include="../docs/qra-talk-guide.html" LogicalName="QraConfig.Guide.html" />
+    <EmbeddedResource Include="../docs/icon-contract.json" LogicalName="QraConfig.IconContract.json" />
     <EmbeddedResource Include="../internal/bundle/manifest.json" LogicalName="QraConfig.Adb.manifest.json" />
   </ItemGroup>
 </Project>

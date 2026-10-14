@@ -62,6 +62,22 @@ public sealed class BackendService
         return status;
     },ct);
     public Task<SessionStatus> StatusAsync(string serial,string token,CancellationToken ct=default) => Serialized(async()=> { CheckToken(token); await RequireUsb(serial,ct); return ParseStatus(await RunAsync(["-s",serial,"shell","content","call","--uri",Uri,"--method","status","--arg",token],null,ct),token); },ct);
+    internal static async Task<ConfigSnapshot> WaitForConsentAndReadAsync(
+        Func<CancellationToken,Task<SessionStatus>> status,
+        Func<CancellationToken,Task<ConfigSnapshot>> read,
+        int attempts,
+        TimeSpan pollDelay,
+        CancellationToken ct)
+    {
+        if(attempts<=0) throw new ArgumentOutOfRangeException(nameof(attempts));
+        for(var i=0;i<attempts;i++) {
+            var state=await status(ct);
+            if(state.Status=="closed") throw new InvalidOperationException("Доступ отклонён или сеанс завершён. Подключитесь заново.");
+            if(state.Status=="ready") return await read(ct);
+            if(i+1<attempts) await Task.Delay(pollDelay,ct);
+        }
+        throw new InvalidOperationException("Время ожидания подтверждения (3 минуты) истекло. Подключитесь заново.");
+    }
     public Task<ConfigSnapshot> ReadAsync(string serial,string token,CancellationToken ct=default) => Serialized(async()=> {
         CheckToken(token); await RequireUsb(serial,ct); var raw=await RunAsync(["-s",serial,"shell","content","read","--uri",Uri+"/session/"+token],null,ct);
         try { var doc=JsonNode.Parse(raw)!.AsObject(); return new ConfigSnapshot(doc["baseline"]!.GetValue<string>(),doc["config"]!.AsObject(),doc["metadata"]?.AsObject()??new()); }
